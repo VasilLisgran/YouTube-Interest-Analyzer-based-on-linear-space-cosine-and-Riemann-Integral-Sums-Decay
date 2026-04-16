@@ -3,13 +3,14 @@ package recommender;
 import com.google.api.services.youtube.YouTube;
 import recommender.Api.YouTubeAuth;
 import recommender.Api.YouTubeDataLoader;
-import recommender.ContentLoader.DataLoader;
+import recommender.Model.CategoryRegistry;
 import recommender.Model.Event;
 import recommender.Model.User;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.Map;
 
 public class Main {
     public static void main(String[] args) {
@@ -19,21 +20,18 @@ public class Main {
             System.out.println("📌 Using Liked Videos as interest signals\n");
 
             // 1. Load categories
+            YouTube youtube = YouTubeAuth.authenticate();
+            var categoryRegistry = new CategoryRegistry();
+            var dataLoader = new YouTubeDataLoader(youtube, categoryRegistry);
             System.out.println("📂 Loading categories...");
-            DataLoader.loadBasis("categories.txt", 17);
-
-            List<String> categories = DataLoader.getCategoryList();
-            System.out.println("✅ Loaded " + categories.size() + " categories");
-
-            System.out.println("\n####################################################################\n");
+            System.out.println("✅ Loaded " + dataLoader.categoryRegistry.getDimension() + " categories");
 
             // 2. Authorize YouTube
             System.out.println("🔐 Authorizing YouTube...");
-            YouTube youtube = YouTubeAuth.authenticate();
             System.out.println("✅ Authorization successful!\n");
 
             // 3. Load liked videos
-            YouTubeDataLoader ytLoader = new YouTubeDataLoader(youtube);
+            YouTubeDataLoader ytLoader = new YouTubeDataLoader(youtube, new CategoryRegistry());
             List<Event> likedVideos = ytLoader.fetchLikedVideos(100);  // Загружаем до 100 лайкнутых видео
 
             if (likedVideos.isEmpty()) {
@@ -42,8 +40,11 @@ public class Main {
                 return;
             }
 
+            System.out.println("\n####################################################################\n");
+
+
             // 4. Create user and add liked videos as history
-            User user = new User("YouTube User", categories.size());
+            User user = new User("YouTube User", ytLoader.categoryRegistry);
             for (Event event : likedVideos) {
                 user.addEvent(event);
             }
@@ -60,10 +61,16 @@ public class Main {
 
             System.out.println("\n####################################################################\n");
 
-            // 7. Get recommendations
-            System.out.println("🎯 TOP RECOMMENDATIONS:");
+            // 7. Get Top categories
+            System.out.println("🎯 TOP CATEGORIES:");
             System.out.println("======================");
-            user.getRecommendations(10);
+            List<Map.Entry<String, Double>> top = user.getTopCategories(5);
+            for (var entry : top) {
+                System.out.printf("  %s: %.3f%n", entry.getKey(), entry.getValue());
+            }
+
+            // 8. Get Recommendations
+            ytLoader.recommendVideo(top);
 
         } catch (IOException e) {
             System.out.println("\n❌ IO Error: " + e.getMessage());

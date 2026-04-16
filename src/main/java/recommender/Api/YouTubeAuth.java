@@ -44,7 +44,8 @@ public class YouTubeAuth {
         InputStream in = YouTubeAuth.class.getResourceAsStream("/" + CLIENT_SECRETS_PATH);
 
         if (in == null) {
-            in = YouTubeAuth.class.getClassLoader().getResourceAsStream(CLIENT_SECRETS_PATH);
+            in = YouTubeAuth.class.getClassLoader().
+                    getResourceAsStream(CLIENT_SECRETS_PATH);
         }
 
         if (in == null) {

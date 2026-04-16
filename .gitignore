@@ -35,5 +35,4 @@ build/
 .vscode/
 
 ### Mac OS ###
-.DS_Storesrc/main/resources/client-secret.json
-categories.txt
+.DS_Store

@@ -2,8 +2,9 @@ package recommender.Api;
 
 import com.google.api.services.youtube.YouTube;
 import com.google.api.services.youtube.model.*;
-import recommender.ContentLoader.DataLoader;
+import recommender.Model.CategoryRegistry;
 import recommender.Model.Event;
+import recommender.Model.MyVector;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -17,31 +18,11 @@ import java.util.*;
 public class YouTubeDataLoader {
 
     private final YouTube youtube;
+    public final CategoryRegistry categoryRegistry;
 
-    private static final Map<String, String> CATEGORY_ID_TO_NAME = new HashMap<>();
-
-    static {
-        CATEGORY_ID_TO_NAME.put("1", "Film & Animation");
-        CATEGORY_ID_TO_NAME.put("2", "Autos & Vehicles");
-        CATEGORY_ID_TO_NAME.put("10", "Music");
-        CATEGORY_ID_TO_NAME.put("15", "Pets & Animals");
-        CATEGORY_ID_TO_NAME.put("17", "Sports");
-        CATEGORY_ID_TO_NAME.put("18", "Short Movies");
-        CATEGORY_ID_TO_NAME.put("19", "Travel & Events");
-        CATEGORY_ID_TO_NAME.put("20", "Gaming");
-        CATEGORY_ID_TO_NAME.put("21", "Videoblogging");
-        CATEGORY_ID_TO_NAME.put("22", "People & Blogs");
-        CATEGORY_ID_TO_NAME.put("23", "Comedy");
-        CATEGORY_ID_TO_NAME.put("24", "Entertainment");
-        CATEGORY_ID_TO_NAME.put("25", "News & Politics");
-        CATEGORY_ID_TO_NAME.put("26", "Howto & Style");
-        CATEGORY_ID_TO_NAME.put("27", "Education");
-        CATEGORY_ID_TO_NAME.put("28", "Science & Technology");
-        CATEGORY_ID_TO_NAME.put("29", "Nonprofits & Activism");
-    }
-
-    public YouTubeDataLoader(YouTube youtube) {
+    public YouTubeDataLoader(YouTube youtube, CategoryRegistry categoryRegistry) {
         this.youtube = youtube;
+        this.categoryRegistry = categoryRegistry;
     }
 
     /**
@@ -83,7 +64,7 @@ public class YouTubeDataLoader {
                 Video video = getVideoDetails(videoId);
                 if (video != null) {
                     String categoryId = video.getSnippet().getCategoryId();
-                    String categoryName = CATEGORY_ID_TO_NAME.get(categoryId);
+                    String categoryName = categoryRegistry.getCategoryName(categoryId);
                     int watchTime = (int) parseDuration(video.getContentDetails().getDuration());
 
                     System.out.println("   Category ID: " + categoryId);
@@ -91,14 +72,12 @@ public class YouTubeDataLoader {
                     System.out.println("   Video duration: " + watchTime + " min");
 
 
-                    int categoryIndex = getCategoryIndex(categoryId);
-
                     // Create an Event
-                    if (categoryIndex != -1 && watchTime > 0) {
+                    if (categoryName != null && watchTime > 0) {
                         LocalDate date = LocalDate.parse(publishedAt, DateTimeFormatter.ISO_DATE_TIME);
-                        Event event = new Event(date, categoryIndex, watchTime);
+                        Event event = new Event(date, categoryId, watchTime);
                         events.add(event);
-                        System.out.println("   ✅ Added to history! Index: " + categoryIndex);
+                        System.out.println("   ✅ Added to history! Index: " + categoryId);
                     } else {
                         System.out.println("   ⚠️ Skipped - category not in our list");
                     }
@@ -134,22 +113,6 @@ public class YouTubeDataLoader {
         return null;
     }
 
-    /**
-     * Convert YouTube category ID to basis index
-     * Index = position of category in categories.txt
-     */
-    private int getCategoryIndex(String youtubeCategoryId) {
-        String categoryName = CATEGORY_ID_TO_NAME.get(youtubeCategoryId);
-        if (categoryName == null) return -1;
-
-        List<String> categories = DataLoader.getCategoryList();
-        for (int i = 0; i < categories.size(); i++) {
-            if (categories.get(i).equals(categoryName)) {
-                return i;
-            }
-        }
-        return -1;
-    }
 
     /**
      * Parse duration from ISO format to minutes
@@ -175,15 +138,30 @@ public class YouTubeDataLoader {
         return Math.max(minutes, 1.0);
     }
 
-    /**
-     * Print preview of loaded event
-     */
-    private void printEventPreview(Event event) {
-        List<String> categories = DataLoader.getCategoryList();
-        String categoryName = (event.getContentId() < categories.size())
-                ? categories.get(event.getContentId())
-                : "Unknown";
-        System.out.printf("  🎬 %s | %s | %d min%n",
-                event.getDate(), categoryName, event.getWatchTime());
+    public void recommendVideo(List<Map.Entry<String, Double>> top) throws IOException {
+        int i = 0;
+
+        while(i < top.size() && top.get(i).getValue() != 0){
+            long countOfRecommended = (int)(top.get(i).getValue()*10);
+
+
+            YouTube.Search.List request = youtube.search()
+                    .list(List.of("snippet"));
+            request.setQ(top.get(i).getKey());
+            request.setType(List.of("video"));
+            request.setMaxResults(countOfRecommended);
+            request.setOrder("relevance");
+            request.setRegionCode("US");
+
+            SearchListResponse response = request.execute();
+
+            for(SearchResult result : response.getItems()){
+                System.out.println("  " + result.getSnippet().getTitle());
+                System.out.println("  https://youtube.com/watch?v=" + result.getId().getVideoId());
+                System.out.println();
+            }
+            i++;
+        }
     }
+
 }
