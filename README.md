@@ -28,9 +28,9 @@ and multiplication by a scalar is defined.
 2. **User as linear combination** — user interests = sum of weighted categories
 3. **Similarity as angle** — cosine between vectors shows interest closeness
 
-# Riemann Integral Sums: Complete Introduction
+## Riemann Integral Sums: Complete Introduction
 
-## 1. Partition of an Interval
+### 1. Partition of an Interval
 
 **Definition (Partition):** A **partition** of an interval $[a; b]$ is an arbitrary finite set $\tau$ of distinct points:
 
@@ -64,7 +64,7 @@ $$
 
 ---
 
-## 2. Tagged Partition 
+### 2. Tagged Partition 
 
 Choosing a point $\xi_i$ in **each** subinterval $[x_{i-1}; x_i]$ of the partition of $[a; b]$ gives us a **partition with marked points** or a **tagged partition**.
 
@@ -82,7 +82,7 @@ $$
 \lambda(\tau, \xi) = \lambda(\tau)
 $$
 
-## 3. Integral Sums
+### 3. Integral Sums
 
 **Definition:** Let a function $f$ be defined on the interval $[a; b]$. For an arbitrary tagged partition $(\tau, \xi)$ of the interval $[a; b]$, where:
 
@@ -108,7 +108,7 @@ where $\Delta x_i = x_i - x_{i-1}$.
 
 # Category Space
 
-## YouTube Category Mapping
+### YouTube Category Mapping
 
 Each YouTube video belongs to one of 17 content categories. The system uses the following mapping:
 
