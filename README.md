@@ -3,18 +3,13 @@
 - [Introduction](#introduction)
 - [Mathematical Model](#mathematical-model)
     - [What is Linear Space?](#about-linear-space)
-    - [What are Riemann Integral Sums?](#about-riemann-integral)
+    - [What are Riemann Integral Sums?](#Riemann-Integral-Sums-Complete-Introduction)
     - [Category Space](#category-space)
-    - [User Vector](#user-vector)
-    - [Recommendations](#recommendations)
 - [Project Structure](#project-structure)
     - [DataFlow](#data-flow)
-    - [YouTubeAuth](#youtube-auth)
-    - [YouTubeDataLoader](#youtube-data-loader)
-    - [CategoryRegistry](#category-registry)
-    - [Event](#event)
-    - [MyVector](#my-vector)
-    - [User](#user)
+    - [YouTubeAuth](#youtubeauth)
+    - [YouTubeDataLoader](#youtubedataloader)
+
 
 
 # Introduction
