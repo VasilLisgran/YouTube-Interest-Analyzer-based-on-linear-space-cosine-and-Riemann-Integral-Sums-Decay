@@ -169,7 +169,7 @@ $$
 
 ### 3. Linear Independence
 
-The set of all category basis vectors $\{\mathbf{e}_1, \mathbf{e}_2, \dots, \mathbf{e}_{17}\}$ is **linearly independent**:
+The set of all category basis vectors $\{e_1, e_2, \dots, e_{17}\}$ is **linearly independent**:
 
 $$
 \alpha_1 \mathbf{e}_1 + \alpha_2 \mathbf{e}_2 + \dots + \alpha_{17} \mathbf{e}_{17} = \mathbf{0} \;\Rightarrow\; \alpha_1 = \alpha_2 = \dots = \alpha_{17} = 0
