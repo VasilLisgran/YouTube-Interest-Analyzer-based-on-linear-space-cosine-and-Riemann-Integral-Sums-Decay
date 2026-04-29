@@ -9,12 +9,111 @@
     - [DataFlow](#data-flow)
     - [YouTubeAuth](#youtubeauth)
     - [YouTubeDataLoader](#youtubedataloader)
+    - [JSONReader](#jsonreader)
 
 
 
 # Introduction
 YouTube Interest Analyzer based on a geometric and integral approach 
 where user and content are represented as vectors in a multi-dimensional category space. The system uses **integral decay (Riemann sum)** to account for temporal dynamics — older views lose relevance over time.
+## How does it work? (Short description)
+
+## 1. Data Collection (Java)
+
+When a user logs into their YouTube account, the program:
+- Loads their liked videos
+- Extracts for each video:
+  - Category
+  - Title
+  - Video duration
+- Stores these actions
+
+## 2. User Vector Calculation (Java)
+
+The program iterates through a Map sorted by ascending category numbers, calculating using the formula:
+V(t) = V(t-1) · λ + (D(t) · λ^age)
+
+$$
+V(t) = V(t-1) \cdot \lambda + \big( D(t) \cdot \lambda^{\text{age}} \big)
+$$
+
+where:
+- $V(t)$ — category weight at day $t$
+- $\lambda = 0.95$ — decay coefficient (-5% every day)
+- $D(t)$ — viewing dynamics at day $t$
+- $\text{age} = T - t_k$ — age of the view in days
+- $T$ — today's date
+- $t_k$ — date of the view
+
+(More about it in the Mathematical model)
+  
+## 3. Video Title Embedding and Clustering (Python)
+
+The saved videos are passed to a Python script that:
+
+**Step 1: Generate Embeddings**
+- Uses the **LaBSE model** (Language-agnostic BERT Sentence Embedding)
+- Converts each video title into an embedding (a set of numbers representing the text's semantic content)
+- This allows the AI to understand the content of titles
+
+**Step 2: Cluster Embeddings**
+- Applies **DBSCAN algorithm** with:
+  - `eps = 0.51`
+  - `min_samples = 2`
+  - `metric = 'cosine'`
+
+**Step 3: Data Structures**
+```python
+titles = ["Title 1", "Title 2", "Title 3", ...]     # List of video titles
+embeddings = model.encode(titles)                    # NumPy array (n_samples, embedding_dim)
+labels = clustering.fit_predict(embeddings)          # NumPy array (n_samples,)
+# Example: labels = [0, 0, 1, -1, 0] where -1 = noise
+```
+
+**Step 4: Map Titles to Clusters**
+
+```python
+clusters = defaultdict(list)
+for title, label in zip(titles, labels):  # Order preserved via same indices!
+    clusters[label].append(title)
+```
+Why this works:
+
+- embeddings[0] corresponds to titles[0]
+- labels[0] corresponds to embeddings[0]
+- Therefore, the same index connects titles, embeddings, and labels
+
+**Step 5: Save to JSON**
+
+Preserves the cluster structure with grouped video titles
+
+## 4. Final Recommendation Generation (Java)
+
+Java opens the JSON file and:
+
+Calculates cosine similarity between:
+
+- User vector from Step 2
+- Category vectors
+- Queries videos from the clustered titles
+- Outputs the required number of recommendations
+
+Count of recommendations
+```java
+int totalToShow = Math.max(3, (int) (cosine * 20));                 // Total for the category
+    Map<String, List<String>> catClusters = clusters.get(category);
+
+    if (catClusters == null || catClusters.isEmpty()) continue;
+
+    for (var cluster : catClusters.entrySet()) {
+        String query = String.join(" ", cluster.getValue());
+        int toShow = totalToShow / catClusters.size();               // For the cluster is Total / number of clusters
+        if (toShow < 1) toShow = 3;
+        searchOnYouTube(query, toShow, category);
+    }
+```
+
+
 
 # Mathematical model
 ## About linear space
@@ -31,8 +130,6 @@ and multiplication by a scalar is defined.
 3. **Similarity as angle** — cosine between vectors shows interest closeness
 
 ## Riemann Integral Sums: Complete Introduction
-
----
 
 ### 1. Partition of an Interval
 
@@ -111,9 +208,11 @@ where $\Delta x_i = x_i - x_{i-1}$.
 - Height = $f(\xi_i)$
 - Width = $\Delta x_i$
 
+I calculate the area under the graph by taking each $\Delta x_i$ as 1 (1 day)
+
 ---
 
-## Category Space
+## Category Space & Vectors
 
 ### 1. YouTube Category Mapping
 
@@ -172,12 +271,12 @@ $$
 The set of all category basis vectors $\{e_1, e_2, \dots, e_{17}\}$ is **linearly independent**:
 
 $$
-\alpha_1 \mathbf{e}_1 + \alpha_2 \mathbf{e}_2 + \dots + \alpha_{17} \mathbf{e}_{17} = \mathbf{0} \;\Rightarrow\; \alpha_1 = \alpha_2 = \dots = \alpha_{17} = 0
+\alpha_1 \mathbf{e}_1 + \alpha_2 \mathbf{e}_2 + \dots + \alpha_{17} \mathbf{e}_{17} = \mathbf{0} \\Rightarrow\ \alpha_1 = \alpha_2 = \dots = \alpha_{17} = 0
 $$
 
 ---
 
-### 4. User Vector
+### 4. User Vector 
 
 #### The Decay Formula
 
@@ -195,6 +294,39 @@ where:
 - $T$ — today's date
 - $t_k$ — date of the view
 
+A new day has begun.
+We're reducing yesterday's trend by 5%.
+We're reducing yesterday's total by 5%.
+
+Is there a view today?
+
+1) No -> We do nothing (the trend has already decreased by 5% today), meaning the area under the graph is zero.
+2) Yes -> We add time to yesterday's trend and multiply by lambda (how old the trend is).
+
+This formula enables sliding decay:
+- The more videos a user watches from a category, the higher the recommendation priority
+- If they stop watching, interest doesn't immediately reset (in case it's temporary)
+- Interest gradually decreases (5% each day)
+- Recently liked videos have greater influence than older ones
+
+Consider day 8 as today. Here're graphics for previous 7 days:
+
+**How many minutes did the user watch per day:**
+
+<div align="center">
+  <img width="600" alt="Daily views" src="https://github.com/user-attachments/assets/6db1efb5-4880-404f-a88a-6c4da30aa3b4" />
+  <br/>
+  <em>Figure 1: Daily watch time (minutes)</em>
+</div>
+
+**Contribution (area under the step function, Δx = 1 day):**
+
+<div align="center">
+  <img width="600" alt="Riemann sum" src="https://github.com/user-attachments/assets/d1df9ceb-eac1-4f30-adaa-031cc36b4d4e" />
+  <br/>
+  <em>Figure 2: Riemann integral sum (area = total weight)</em>
+</div>
+
 #### Viewing Dynamics
 
 The dynamics $D(t)$ represent the **session effect** — consecutive views amplify each other:
@@ -204,6 +336,14 @@ D(t) = D(t-1) \cdot \lambda + W(t)
 $$
 
 where $W(t)$ is the total watch time (in minutes) for the category on day $t$.
+
+**Viewing dynamics D(t) — session effect:**
+
+<div align="center">
+  <img width="600" alt="Dynamics" src="https://github.com/user-attachments/assets/eabe4162-0f4b-4e9b-9433-6da42875b15d" />
+  <br/>
+  <em>Figure 3: Dynamics D(t) — accumulates during viewing sessions, decays otherwise</em>
+</div>
 
 #### Complete Algorithm in Code
 
@@ -366,3 +506,96 @@ For each category, calculates the number of videos to fetch:
 - count = weight × 10
 - Performs a YouTube search for videos in that category
 - Prints video titles and URLs to console
+
+## JSONReader
+
+The `JSON_Reader` class handles the export of video data from Java to Python via JSON format.
+
+#### Class Structure
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `data` | `List<Map<String, String>>` | Stores video titles and categories |
+| `mapper` | `ObjectMapper` | Jackson JSON processor |
+
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `addVideo(title, category)` | Adds a video entry (title + category) to the export list |
+| `saveToJson(filePath)` | Writes all collected data to a JSON file |
+
+#### Data Flow (Java → Python)
+Java (YouTubeDataLoader) → JSON_Reader → user_videos.json → Python (cluster.py)
+
+
+#### JSON Output Example
+
+```json
+[
+  {
+    "title": "Rammstein - Deutschland",
+    "category": "Music"
+  },
+  {
+    "title": "Как испечь хлеб дома",
+    "category": "Howto & Style"
+  }
+]
+```
+
+## Python Clustering Script (cluster.py)
+
+### Python Clustering Script (`cluster.py`)
+
+The Python script performs semantic clustering of video titles using embeddings (by model LaBSE) and DBSCAN.
+
+
+#### Key Components
+
+**1. Text Cleaning (`clean_text`)**
+
+Removes noise from video titles:
+- Special characters → spaces
+- Hashtags (`#`) → removed
+- URLs and mentions → removed
+- Numbers → removed
+- Extra whitespace → normalized
+
+**2. Stop Words Filtering**
+
+A comprehensive set of stop words in both Russian and English:
+- Common prepositions: `и`, `в`, `на`, `of`, `the`, `and`
+- Temporal words: months, days of week, `today`, `yesterday`
+- Numerals: `one`, `two`, `three`, `один`, `два`
+- Gaming jargon: `walkthrough`, `playthrough`, `episode`
+- Emojis and garbage tokens
+
+**3. DBSCAN Parameters**
+
+| Parameter | Value | Explanation |
+|-----------|-------|-------------|
+| `eps` | 0.51 | Maximum distance between samples in a cluster |
+| `min_samples` | 2 | Minimum videos to form a cluster |
+| `metric` | `'cosine'` | Cosine distance for semantic similarity |
+
+**4. Cluster Processing**
+
+For each cluster (label ≠ -1):
+- Count word frequencies across all titles in the cluster
+- For `Gaming` and `News & Politics`: limit to top 2 words (more precise)
+- Skip empty clusters (no valid keywords)
+
+#### Data Flow (Python → Java)
+
+```python
+clusters_result.json = {
+    "Music": {
+        "0": ["rammstein", "deutschland", "sonne"],
+        "1": ["король", "шут", "лесник"]
+    },
+    "Gaming": {
+        "0": ["minecraft", "horror"]
+    }
+}
+```
