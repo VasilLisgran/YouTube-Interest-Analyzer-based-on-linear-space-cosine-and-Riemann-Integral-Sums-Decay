@@ -1,10 +1,10 @@
-# YouTube Interest Analyzer based on linear space and cosine with Integral (Riemann) Decay
+# YouTube Interest Analyzer based on Linear Space and Cosine Similarity with Exponential Temporal Decay
 
 - [Introduction](#introduction)
 - [Mathematical Model](#mathematical-model)
     - [What is Linear Space?](#about-linear-space)
-    - [What are Riemann Integral Sums?](#Riemann-Integral-Sums-Complete-Introduction)
     - [Category Space](#category-space)
+    - [Exponential Temporal Decay](#exponential-temporal-decay)
 - [Project Structure](#project-structure)
     - [DataFlow](#data-flow)
     - [YouTubeAuth](#youtubeauth)
@@ -14,8 +14,9 @@
 
 
 # Introduction
-YouTube Interest Analyzer based on a geometric and integral approach 
-where user and content are represented as vectors in a multi-dimensional category space. The system uses **integral decay (Riemann sum)** to account for temporal dynamics — older views lose relevance over time.
+
+YouTube Interest Analyzer represents users and content as vectors in a 17-dimensional category space.
+The system uses **Exponential Temporal Decay** to account for temporal dynamics — older views lose relevance over time.
 ## How does it work? (Short description)
 
 ## 1. Data Collection (Java)
@@ -31,7 +32,6 @@ When a user logs into their YouTube account, the program:
 ## 2. User Vector Calculation (Java)
 
 The program iterates through a Map sorted by ascending category numbers, calculating using the formula:
-V(t) = V(t-1) · λ + (D(t) · λ^age)
 
 $$
 V(t) = V(t-1) \cdot \lambda + \big( D(t) \cdot \lambda^{\text{age}} \big)
@@ -117,6 +117,7 @@ int totalToShow = Math.max(3, (int) (cosine * 20));                 // Total for
 
 # Mathematical model
 ## About linear space
+
 Linear space is a mathematical structure that represents 
 a set of vectors for which the operation of addition to each other 
 and multiplication by a scalar is defined.
@@ -129,92 +130,9 @@ and multiplication by a scalar is defined.
 2. **User as linear combination** — user interests = sum of weighted categories
 3. **Similarity as angle** — cosine between vectors shows interest closeness
 
-## Riemann Integral Sums: Complete Introduction
-
-### 1. Partition of an Interval
-
-**Definition (Partition):** A **partition** of an interval $[a; b]$ is an arbitrary finite set $\tau$ of distinct points:
-
-$$
-a = x_0 < x_1 < x_2 < \dots < x_{n-1} < x_n = b
-$$
-
-The numbers $x_0, x_1, \dots, x_n$ are called **partition points**, and the intervals $[x_0; x_1], [x_1; x_2], \dots, [x_{n-1}; x_n]$ are called **partition subintervals**.
-
-This set of points is $\tau $
-
-The length of the $i$-th subinterval is denoted by:
-
-$$
-\Delta x_i = x_i - x_{i-1}, \quad i = 1, 2, \dots, n
-$$
-
-**Definition (Mesh/Rank):** The largest of the numbers $\Delta x_i$ is called the **mesh** or **rank** of the partition $\tau$ and is denoted by $\lambda(\tau)$:
-
-$$
-\lambda(\tau) = \max\{\Delta x_1, \Delta x_2, \dots, \Delta x_n\}
-$$
-
-**Example:**
-
-For the interval $[0; 10]$ and partition $\tau: 0 < 2 < 5 < 7 < 10$:
-
-$$
-\Delta x_1 = 2,\ \Delta x_2 = 3,\ \Delta x_3 = 2,\ \Delta x_4 = 3 \quad \Rightarrow \quad \lambda(\tau) = 3
-$$
-
----
-
-### 2. Tagged Partition 
-
-Choosing a point $\xi_i$ in **each** subinterval $[x_{i-1}; x_i]$ of the partition of $[a; b]$ gives us a **partition with marked points** or a **tagged partition**.
-
-If we denote by $\xi$ the set of chosen points:
-
-$$
-\xi = \{\xi_1, \xi_2, \dots, \xi_n\}
-$$
-
-where $\xi_i \in [x_{i-1}; x_i]$ for each $i = 1, 2, \dots, n$, then the tagged partition is denoted by $(\tau, \xi)$.
-
-The **rank** of a tagged partition $(\tau, \xi)$ is understood as the rank of the partition $\tau$:
-
-$$
-\lambda(\tau, \xi) = \lambda(\tau)
-$$
-
----
-### 3. Integral Sums
-
-**Definition:** Let a function $f$ be defined on the interval $[a; b]$. For an arbitrary tagged partition $(\tau, \xi)$ of the interval $[a; b]$, where:
-
-$$
-\tau: a = x_0 < x_1 < x_2 < \dots < x_{n-1} < x_n = b
-$$
-
-$$
-\xi: \xi_1, \xi_2, \dots, \xi_n, \quad \xi_i \in [x_{i-1}, x_i]
-$$
-
-we define the **integral sum** $S_f(\tau, \xi)$ by the formula:
-
-$$
-S_f(\tau, \xi) = \sum_{i=1}^{n} f(\xi_i) \, \Delta x_i
-$$
-
-where $\Delta x_i = x_i - x_{i-1}$.
-
-**Geometric meaning:** Sum of areas of rectangles with:
-- Height = $f(\xi_i)$
-- Width = $\Delta x_i$
-
-I calculate the area under the graph by taking each $\Delta x_i$ as 1 (1 day)
-
----
-
 ## Category Space & Vectors
 
-### 1. YouTube Category Mapping
+### YouTube Category Mapping
 
 Each YouTube video belongs to one of 17 content categories. The system uses the following mapping:
 
@@ -276,11 +194,11 @@ $$
 
 ---
 
-### 4. User Vector 
+## Exponential Temporal Decay
 
-#### The Decay Formula
+When I created it, I was thinking about the Riemann integral sum. But my representation is discrete (and the Riemann sum uses continuous functions).
 
-For each category, we compute its weight $V(t)$ using a **two-layer exponential decay** model:
+Each day, every category weight is multiplied by a decay factor λ:
 
 $$
 V(t) = V(t-1) \cdot \lambda + \big( D(t) \cdot \lambda^{\text{age}} \big)
@@ -295,13 +213,13 @@ where:
 - $t_k$ — date of the view
 
 A new day has begun.
-We're reducing yesterday's trend by 5%.
-We're reducing yesterday's total by 5%.
+We're reducing yesterday's Dynamics by 5%.
+We're reducing yesterday's total by 5% (Why? For the case if user will never watch this category again and we need to 'forget' this category from the user's vector)
 
 Is there a view today?
 
-1) No -> We do nothing (the trend has already decreased by 5% today), meaning the area under the graph is zero.
-2) Yes -> We add time to yesterday's trend and multiply by lambda (how old the trend is).
+1) No -> We do nothing (the total has already decreased by 5% today), meaning the area under the graph for this day is zero.
+2) Yes -> We add time to yesterday's Dynamics and multiply by lambda (how old the trend is).
 
 This formula enables sliding decay:
 - The more videos a user watches from a category, the higher the recommendation priority
@@ -313,18 +231,23 @@ Consider day 8 as today. Here're graphics for previous 7 days:
 
 **How many minutes did the user watch per day:**
 
+Data: minutes per day for category
+
 <div align="center">
   <img width="600" alt="Daily views" src="https://github.com/user-attachments/assets/6db1efb5-4880-404f-a88a-6c4da30aa3b4" />
   <br/>
   <em>Figure 1: Daily watch time (minutes)</em>
+  <br/>
 </div>
 
 **Contribution (area under the step function, Δx = 1 day):**
 
+Data: V(t) for each day with the decay for 8th day
+
 <div align="center">
-  <img width="600" alt="Riemann sum" src="https://github.com/user-attachments/assets/d1df9ceb-eac1-4f30-adaa-031cc36b4d4e" />
+  <img width="1250" height="788" alt="тотал_page-0001" src="https://github.com/user-attachments/assets/60bf9203-a089-4e45-b5f4-f208f1cfd79e" />
   <br/>
-  <em>Figure 2: Riemann integral sum (area = total weight)</em>
+    <em>Figure 2: Category weight accumulation with exponential decay</em>
 </div>
 
 #### Viewing Dynamics
@@ -344,6 +267,8 @@ where $W(t)$ is the total watch time (in minutes) for the category on day $t$.
   <br/>
   <em>Figure 3: Dynamics D(t) — accumulates during viewing sessions, decays otherwise</em>
 </div>
+
+---
 
 #### Complete Algorithm in Code
 
